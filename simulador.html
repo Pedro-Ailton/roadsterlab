@@ -106,8 +106,6 @@
   [hidden]{display:none!important}
   .titulo-ajustes{display:flex;align-items:center;justify-content:space-between}
   .titulo-ajustes h2{margin:0;border:0;color:var(--txt);font-size:14px}
-  .link-html{display:block;margin-top:12px;padding:9px 6px;border:1px solid var(--line);border-radius:6px;background:#1c2027;color:var(--txt);font-size:13px;font-weight:600;text-align:center;text-decoration:none}
-  .link-html:hover{border-color:#4a515c}
   h2{letter-spacing:0}
   details{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
   summary{cursor:pointer;font-size:13px;color:var(--mut)}
@@ -206,7 +204,6 @@
   </div>
   <aside id="ajustes" hidden>
     <div class="titulo-ajustes"><h2>Ajustes</h2><button id="btnTut" title="Ver tutorial" aria-label="Ver tutorial">?</button><button id="btnFechar" aria-label="Fechar ajustes" title="Fechar ajustes">×</button></div>
-    <a class="link-html" href="index.html">Abrir explicação sobre Tesla Roadster</a>
     <h2>Modo</h2>
     <div class="modos">
       <button data-modo="performance" class="on">Performance</button>
@@ -896,10 +893,16 @@ function atualizarVisual(dt){
   jLat[0].visible = comandos.lat>0 && carro.gas>0; jLat[1].visible = comandos.lat<0 && carro.gas>0;
   // câmera segue
   const vk = Math.min(1, carro.vel.x/80);
-  camAlvo.set(x - 7.5 - vk*4, y + 3.4, 8 + vk*3);
-  if (tipoPista === "loop") camAlvo.set(X_LOOP-7, R_LOOP*2, Math.max(R_LOOP*6,(R_LOOP*3+8)/(Math.tan(25*Math.PI/180)*camera.aspect)));
-  camera.position.lerp(camAlvo, 1 - Math.exp(-4*dt));
-  camera.lookAt(tipoPista === "loop" ? X_LOOP-7 : x+2, tipoPista === "loop" ? R_LOOP-0.5 : y+0.8, 0);
+  if (tipoPista === "loop") {
+    // na rampa a câmera acompanha o carro de perto, abrindo um pouco conforme ele sobe
+    camAlvo.set(X_LOOP - 3 + (x - X_LOOP) * 0.6, y + 2.8, 12 + (y / (2 * R_LOOP)) * 7);
+    camera.position.lerp(camAlvo, 1 - Math.exp(-4*dt));
+    camera.lookAt(x + 1, y + 1.2, 0);
+  } else {
+    camAlvo.set(x - 7.5 - vk*4, y + 3.4, 8 + vk*3);
+    camera.position.lerp(camAlvo, 1 - Math.exp(-4*dt));
+    camera.lookAt(x + 2, y + 0.8, 0);
+  }
 }
 
 // ======= Gráfico v × t =======
