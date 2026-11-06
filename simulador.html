@@ -106,6 +106,8 @@
   [hidden]{display:none!important}
   .titulo-ajustes{display:flex;align-items:center;justify-content:space-between}
   .titulo-ajustes h2{margin:0;border:0;color:var(--txt);font-size:14px}
+  .btn-voltar-index{display:block;margin:12px 0 4px;padding:10px;text-align:center;text-decoration:none;font-size:13px;font-weight:600;background:#1c2027;color:var(--txt);border:1px solid var(--line);border-radius:6px}
+  .btn-voltar-index:hover,.btn-voltar-index:focus-visible{border-color:#4a515c}
   h2{letter-spacing:0}
   details{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
   summary{cursor:pointer;font-size:13px;color:var(--mut)}
@@ -204,6 +206,7 @@
   </div>
   <aside id="ajustes" hidden>
     <div class="titulo-ajustes"><h2>Ajustes</h2><button id="btnTut" title="Ver tutorial" aria-label="Ver tutorial">?</button><button id="btnFechar" aria-label="Fechar ajustes" title="Fechar ajustes">×</button></div>
+    <a class="btn-voltar-index" href="index.html">← Voltar ao início</a>
     <h2>Modo</h2>
     <div class="modos">
       <button data-modo="performance" class="on">Performance</button>
