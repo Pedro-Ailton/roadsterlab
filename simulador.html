@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simulador Tesla Roadster 2026 — Física com Gás Frio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#0d0f12; --panel:rgba(20,23,28,.88); --line:#2a2f37; --txt:#e8e6e1; --mut:#8b929c;
+    --red:#e5322d; --amber:#f2a93b; --cyan:#7fd4e6; --ok:#7bd88f;
+    --sky:#d9e9ed; --horizon:#edf1ed; --asphalt:#343c40; --road-line:#eff3ee;
+    --terrain:#739b83; --paint:#bd1829; --glass:#182d37; --rubber:#171c20;
+    --alloy:#c2ccd1; --carbon:#252d31; --headlight:#edfaff; --taillight:#ff3148;
+    --sun:#fff3dc; --ambient:#edf7ff; --ground-light:#809084; --curb:#dc5558;
+    --exhaust:#b9efff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:"Space Grotesk",system-ui,sans-serif;overflow:hidden}
+  #app{display:grid;grid-template-columns:1fr 360px;height:100vh}
+  #cena{position:relative;min-height:0}
+  #cena > canvas:first-child{display:block;width:100%;height:100%}
+  aside{background:#121418;border-left:1px solid var(--line);overflow-y:auto;padding:14px 14px 40px}
+  h1{font-size:18px;margin:0 0 2px;letter-spacing:.02em}
+  h1 span{color:var(--red)}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--mut);margin:18px 0 8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .sub{color:var(--mut);font-size:12px;margin:0}
+  .modos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  button{font:inherit;font-size:13px;font-weight:600;background:#1c2027;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:9px 6px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  button:hover{border-color:#4a515c}
+  button.on{background:var(--red);border-color:var(--red);color:#fff}
+  button.amb.on{background:var(--amber);border-color:var(--amber);color:#111}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  label.s{display:block;font-size:12px;color:var(--mut);margin:8px 0 2px}
+  label.s b{color:var(--txt);font-family:"JetBrains Mono",monospace;font-weight:600;float:right}
+  input[type=range]{width:100%;accent-color:var(--red)}
+  #tipoPista{width:100%;font:inherit;font-size:13px;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px}
+  .chk{font-size:13px;display:flex;gap:6px;align-items:center;margin-top:8px}
+  .info{font-size:12px;line-height:1.5;color:#c3c7cd}
+  .info code{font-family:"JetBrains Mono",monospace;color:var(--amber);font-size:11.5px}
+  .nota{background:rgba(127,212,230,.08);border:1px solid rgba(127,212,230,.25);border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.45;margin-top:8px}
+  kbd{font-family:"JetBrains Mono",monospace;background:#232831;border:1px solid #3a404a;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px}
+  /* HUD */
+  #hud{position:absolute;top:10px;left:10px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;max-width:640px;pointer-events:none}
+  .m{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;backdrop-filter:blur(6px)}
+  .m small{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--mut)}
+  .m span{font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:600}
+  .m.big span{font-size:22px;color:var(--red)}
+  #status{position:absolute;top:10px;right:10px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:12px;font-family:"JetBrains Mono",monospace;pointer-events:none}
+  #gasbar{height:6px;background:#2a2f37;border-radius:3px;overflow:hidden;margin-top:4px}
+  #gasbar i{display:block;height:100%;background:var(--cyan);width:100%}
+  #grafico{display:block;width:100%;height:120px;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin-top:8px}
+  #toque{display:none}
+  #desafio{position:absolute;top:200px;left:10px;display:grid;gap:6px;width:230px;pointer-events:none}
+  #msgFalha{display:none;position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);background:rgba(229,50,45,.94);color:#fff;padding:16px 26px;border-radius:8px;text-align:center;font-size:16px;line-height:1.5}
+  #msgFalha b{font-size:26px;letter-spacing:.1em}
+  #msgFalha button{margin-top:12px;padding:10px 22px;font-size:15px;font-weight:700;color:var(--red);background:#fff;border:0;border-radius:6px;cursor:pointer}
+  #msgFalha button:hover{filter:brightness(.92)}
+  @media (max-width:900px){
+    #app{grid-template-columns:1fr;grid-template-rows:58vh 1fr;height:100vh}
+    aside{border-left:0;border-top:1px solid var(--line)}
+    #hud{grid-template-columns:repeat(3,minmax(0,1fr));right:10px}
+    .m span{font-size:13px}.m.big span{font-size:17px}
+    #grafico{height:90px}
+    #desafio{top:auto;bottom:100px;width:180px}
+    #status{top:auto;bottom:10px;right:10px}
+    #toque{display:grid;position:absolute;bottom:100px;right:10px;grid-template-columns:repeat(3,52px);gap:6px}
+    #toque button{padding:12px 0;background:rgba(28,32,39,.85)}
+  }
+
+  /* Simulation-first layout */
+  #app{display:block;position:relative;height:100dvh}
+  #cena{position:absolute;inset:0}
+  #acoes{position:absolute;top:12px;right:16px;display:flex;align-items:center;gap:10px;z-index:5}
+  #tipoPista{width:230px;max-width:100%;padding:11px 12px;font-size:14px;font-weight:600;color:var(--txt);background:#1c2027;border:2px solid #4a515c;border-radius:8px;cursor:pointer}
+  #tipoPista:hover{border-color:var(--cyan)}
+  #acoes button{width:46px;height:46px;padding:0;font-size:26px;font-weight:700;background:#1c2027;border:2px solid #4a515c;flex-shrink:0}
+  #acoes button:hover{border-color:var(--cyan)}
+  #hud{top:14px;left:20px;right:auto;display:flex;gap:20px;max-width:none}
+  #hud .m{background:transparent;border:0;padding:0;backdrop-filter:none;min-width:75px}
+  #hud .m small{color:var(--bg);letter-spacing:0;font-size:11px}
+  #hud .m span{color:var(--bg);font-size:18px}
+  #hud .m.big span{font-size:26px;color:var(--bg)}
+  #gasbar{width:90px}
+  #status{top:auto;bottom:194px;left:20px;right:auto;font-size:11px;padding:5px 8px}
+  #desafio{top:auto;bottom:230px;left:20px;width:auto;max-width:calc(100% - 40px)}
+  #desafio .m{padding:6px 8px}
+  #desafio small{letter-spacing:0}
+  #direcao{position:absolute;bottom:16px;left:16px;width:180px;max-width:calc(40% - 24px);padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+  #direcao .grupo-controles{flex-direction:column}
+  #controles-voo{position:absolute;bottom:16px;right:16px;width:360px;max-width:calc(60% - 24px);display:grid;gap:12px}
+  #conducao{display:grid;grid-template-columns:1fr;align-items:center;gap:10px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px}
+  .grupo-controles{display:flex;gap:8px}
+  .grupo-controles button{flex:1}
+  .grupo-controles.larga{grid-column:1 / -1}
+  #conducao button,#direcao button{min-height:60px;min-width:0;padding:12px 8px;font-size:15px}
+  #direcao .grupo-controles button{min-height:68px;font-size:17px}
+  #conducao .giro button{font-size:28px}
+  #btnProp{width:100%;min-height:56px;padding:12px;font-size:16px;background:var(--bg);border:2px solid var(--amber)}
+  #btnProp.on{background:var(--amber);color:var(--bg)}
+  #btnSuccao{width:100%;min-height:56px;padding:12px;font-size:16px;background:var(--bg);border:2px solid var(--cyan)}
+  #btnSuccao.on{background:var(--cyan);color:var(--bg)}
+  aside{position:absolute;right:16px;top:76px;bottom:100px;width:320px;max-width:calc(100% - 32px);padding:16px;background:var(--bg);border:1px solid var(--line);border-radius:8px;overflow:auto;z-index:3}
+  [hidden]{display:none!important}
+  .titulo-ajustes{display:flex;align-items:center;justify-content:space-between}
+  .titulo-ajustes h2{margin:0;border:0;color:var(--txt);font-size:14px}
+  .link-html{display:block;margin-top:12px;padding:9px 6px;border:1px solid var(--line);border-radius:6px;background:#1c2027;color:var(--txt);font-size:13px;font-weight:600;text-align:center;text-decoration:none}
+  .link-html:hover{border-color:#4a515c}
+  h2{letter-spacing:0}
+  details{margin-top:20px;border-top:1px solid var(--line);padding-top:14px}
+  summary{cursor:pointer;font-size:13px;color:var(--mut)}
+  #telemetria{margin-top:12px}
+  #telemetria .m{background:transparent}
+  #telemetria .m small{letter-spacing:0}
+  #telemetria .m span{font-size:13px}
+  #grafico{height:120px}
+  #msgFalha{max-width:calc(100% - 32px);width:360px;z-index:4}
+  #msgGas{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);z-index:4;background:rgba(28,32,39,.94);border:2px solid var(--red);border-radius:8px;padding:18px 28px;text-align:center;color:var(--red)}
+  #msgGas b{display:block;font-size:22px;letter-spacing:.1em}
+  #msgGas p{margin:8px 0 14px;font-size:14px;line-height:1.4}
+  #msgGas button{padding:10px 22px;font-size:15px;font-weight:700;color:#fff;background:var(--red);border:0;border-radius:6px;cursor:pointer}
+  #msgGas button:hover{filter:brightness(1.15)}
+  @media(max-width:700px){
+    #acoes{top:10px;right:12px;gap:6px}
+    #tipoPista{width:150px;font-size:12px;padding:10px 8px}
+    #acoes button{width:40px;height:40px;font-size:22px}
+    #hud{top:14px;left:12px;gap:14px}
+    #controles-voo{bottom:12px;right:12px;width:360px;max-width:calc(60% - 18px);gap:10px}
+    #conducao{gap:8px;padding:8px}
+    #direcao{bottom:12px;left:12px;width:180px;max-width:calc(40% - 18px);padding:8px}
+    #conducao button{padding:8px 4px;min-height:56px}
+    #direcao .grupo-controles button{min-height:64px}
+    #conducao button span,#direcao button span{display:none}
+    #btnProp{font-size:13px;min-height:56px;padding:10px 6px}
+    #status{left:12px;bottom:172px;max-width:calc(40% - 18px)}
+    #desafio{left:12px;bottom:224px;max-width:calc(40% - 18px)}
+    aside{top:106px;bottom:140px;right:12px}
+  }
+  @media(max-width:480px){
+    #acoes{left:12px;justify-content:flex-end}
+    #hud{top:66px;gap:12px}
+    #hud .m{min-width:0}
+    #hud .m span{font-size:15px}
+    #hud .m.big span{font-size:22px}
+    #gasbar{width:80px}
+    #msgGas{width:calc(100% - 32px);padding:16px}
+  }
+#avisoProp{margin:0 0 6px;padding:8px 10px;border-radius:8px;background:rgba(0,0,0,.72);color:#ffb347;font:600 13px system-ui;border:1px solid #ffb347}
+#conducao button:disabled,#btnProp:disabled{opacity:.4;cursor:not-allowed}
+#tutorial{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(5,8,14,.78);padding:16px}
+#tutorial[hidden]{display:none}
+.tut-caixa{max-width:520px;max-height:90vh;overflow:auto;background:#141a24;color:#eef2f7;border:1px solid #3a4658;border-radius:14px;padding:20px 22px;font:14px/1.5 system-ui}
+.tut-caixa h2{margin:0 0 10px;font-size:19px}.tut-caixa h3{margin:12px 0 4px;font-size:15px}
+.tut-caixa ul{margin:0;padding-left:18px}
+#btnTutOk{margin-top:14px;width:100%;padding:12px;font-size:16px;font-weight:700;border-radius:10px;border:0;background:#e82127;color:#fff;cursor:pointer}
+#btnTut{margin-left:auto;margin-right:6px}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.169.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div id="app">
+  <div id="cena">
+    <div id="hud">
+      <div class="m big"><small>Velocidade</small><span id="hVel">0 mph</span></div>
+      <div class="m"><small>Altitude</small><span id="hAlt">0 m</span></div>
+      <div class="m"><small>Gás restante</small><span id="hGas">255 kg</span><div id="gasbar"><i></i></div></div>
+      <div class="m"><small>Sucção</small><span id="hSuc">Desligada</span></div>
+    </div>
+    <div id="desafio">
+      <div class="m"><small>Altura necessária (próx. obstáculo)</small><span id="hReq">—</span></div>
+      <div class="m" hidden><small>Vel. vertical atual</small><span id="hVy2">0</span></div>
+      <div class="m"><small>Rampa · velocidade sem sucção</small><span id="hLoop">—</span></div>
+    </div>
+    <div id="msgFalha"></div>
+    <div id="msgGas" hidden>
+      <b>GÁS ESGOTADO!</b>
+      <p>Para encher novamente, reinicie no símbolo ↺</p>
+      <button id="btnGasReset" aria-label="Reiniciar para reabastecer o gás">↺ Reiniciar</button>
+    </div>
+    <div id="status">NO CHÃO · 0–60: —</div>
+
+  </div>
+
+  <nav id="acoes">
+    <select id="tipoPista" aria-label="Selecionar pista">
+      <option value="reta">Pista reta</option>
+      <option value="obstaculos">Pista com obstáculos</option>
+      <option value="loop">Rampa</option>
+    </select>
+    <button id="btnReset" title="Reiniciar (R)" aria-label="Reiniciar">↺</button>
+    <button id="btnAjustes" title="Ajustes" aria-label="Abrir ajustes" aria-expanded="false" aria-controls="ajustes">⚙</button>
+  </nav>
+  <nav id="direcao" class="painel-controles" aria-label="Acelerar e frear">
+    <div class="grupo-controles larga"><button data-hold="up" title="Acelerar (W)" aria-label="Acelerar">▲ <span>Acelerar</span></button><button data-hold="down" title="Frear (S)" aria-label="Frear">▼ <span>Frear</span></button></div>
+  </nav>
+  <div id="controles-voo">
+    <button id="btnSuccao" title="Alternar sucção (F)" aria-pressed="false">Sucção: DESLIGADA</button>
+    <p id="avisoProp" hidden></p>
+    <button id="btnProp" class="amb" title="Alternar propulsores (T)" aria-pressed="false">Propulsores: DESLIGADOS</button>
+  <nav id="conducao" class="painel-controles" aria-label="Controles de voo">
+    <div class="grupo-controles larga voo"><button data-hold="space" title="Decolar (Espaço)" aria-label="Decolar">↑ <span>Decolar</span></button><button data-hold="shift" title="Pouso suave (Shift)" aria-label="Pousar">↓ <span>Pousar</span></button><button data-hold="air" title="Avançar no ar (E)" aria-label="Avançar no ar">⇥ <span>Avançar</span></button></div>
+    <div class="grupo-controles giro"><button data-hold="left" title="Girar à esquerda (A)" aria-label="Girar à esquerda">⟲</button><button data-hold="right" title="Girar à direita (D)" aria-label="Girar à direita">⟳</button></div>
+  </nav>
+  </div>
+  <aside id="ajustes" hidden>
+    <div class="titulo-ajustes"><h2>Ajustes</h2><button id="btnTut" title="Ver tutorial" aria-label="Ver tutorial">?</button><button id="btnFechar" aria-label="Fechar ajustes" title="Fechar ajustes">×</button></div>
+    <a class="link-html" href="index.html">Abrir explicação sobre Tesla Roadster</a>
+    <h2>Modo</h2>
+    <div class="modos">
+      <button data-modo="performance" class="on">Performance</button>
+      <button data-modo="thrust">Thrust</button>
+      <button data-modo="rocket">Rocket</button>
+    </div>
+    <p id="modoDesc" hidden></p>
+
+    <h2>Parâmetros</h2>
+    <label class="s">Massa <b id="vMassa"></b></label><input type="range" id="sMassa" min="1500" max="2600" step="10" value="2000">
+    <label class="s">Coef. de arrasto C<sub>d</sub> <b id="vCd"></b></label><input type="range" id="sCd" min="0.15" max="0.6" step="0.01" value="0.25">
+    <label class="s">Área frontal A <b id="vArea"></b></label><input type="range" id="sArea" min="1.4" max="2.6" step="0.05" value="1.9">
+    <label class="s">Força máx. do motor <b id="vMotor"></b></label><input type="range" id="sMotor" min="10000" max="45000" step="500" value="34000">
+    <label class="s">Vazão máxima ṁ <b id="vFlow"></b></label><input type="range" id="sFlow" min="5" max="120" step="1" value="40">
+    <label class="s">Impulso específico I<sub>sp</sub> <b id="vIsp"></b></label><input type="range" id="sIsp" min="40" max="120" step="1" value="70">
+    <label class="chk"><input type="checkbox" id="cLift"> Sustentação aerodinâmica (C<sub>L</sub> = 0.3)</label>
+
+    <details><summary>Telemetria</summary><div id="telemetria" class="grid2">      <div class="m"><small>Aceleração</small><span id="hAcc">0 m/s²</span></div>      <div class="m"><small>Distância</small><span id="hDist">0 m</span></div>      <div class="m"><small>Vel. vertical</small><span id="hVy">0 m/s</span></div>      <div class="m"><small>Empuxo total</small><span id="hThr">0 N</span></div>      <div class="m"><small>Empuxo vertical</small><span id="hThrV">0 N</span></div>      <div class="m"><small>Arrasto</small><span id="hDrag">0 N</span></div>      <div class="m"><small>Vazão</small><span id="hFlow">0 kg/s</span></div>      <div class="m"><small>Tempo de voo</small><span id="hVoo">0.0 s</span></div>      <div class="m"><small>Ângulo</small><span id="hAng">0.00 rad</span></div>      <div class="m"><small>Força de sucção</small><span id="hSucF">0 N</span></div>      <div class="m"><small>Vácuo sob o carro (ΔP)</small><span id="hSucP">0 kPa</span></div>      <div class="m"><small>Folga do assoalho</small><span id="hSucH">0 cm</span></div></div><canvas id="grafico"></canvas></details>
+  </aside>
+  <div id="tutorial" hidden role="dialog" aria-modal="true" aria-labelledby="tutTitulo">
+    <div class="tut-caixa">
+      <h2 id="tutTitulo">Bem-vindo ao simulador Tesla Roadster</h2>
+      <ul>
+        <li><b>▲ Acelerar / ▼ Frear</b> (canto inferior esquerdo · W / S)</li>
+        <li><b>Propulsores</b> liga ou desliga os jatos de gás frio (T)</li>
+        <li><b>Sucção</b> (F): gruda o carro na pista, mesmo invertido · não gasta gás</li>
+        <li><b>↑ Decolar · ↓ Pousar</b> usam os propulsores verticais (Espaço / Shift)</li>
+        <li><b>⇥ Avançar</b> usa os propulsores traseiros no ar (E)</li>
+        <li><b>⟲ ⟳ Girar</b> usa os propulsores laterais, só no ar (A / D)</li>
+        <li><b>Seletor de pista</b>: reta, com obstáculos ou Rampa de 18 m</li>
+        <li><b>↺ Reiniciar</b> recomeça e reabastece o gás (R) · <b>⚙ Ajustes</b> troca o modelo e parâmetros</li>
+      </ul>
+      <h3>Modelos</h3>
+      <ul>
+        <li><b>Performance</b>: motor elétrico e sucção, sem propulsores.</li>
+        <li><b>Thrust</b>: sucção e propulsores verticais e laterais; apenas a propulsão traseira fica indisponível.</li>
+        <li><b>Rocket</b>: sucção e todos os propulsores, inclusive os traseiros.</li>
+      </ul>
+      <button id="btnTutOk">Começar</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+
+// ======= Constantes =======
+const G = 9.81, G0 = 9.80665, RHO = 1.225, C_DOWN = 0.4, C_L = 0.3;
+const GAS_INICIAL = 255, N_PROP = 10, R_LATERAL = 1.9;
+const COMPR = 4.2, ALT = 1.2, RESTITUICAO = 0.15, MU = 1.1, V_MAX = 108;
+const MODOS = {
+  performance:{nome:"Performance", alvo:"0–60 mph < 1,6 s · sem propulsores", trasFrac:0},
+  thrust:{nome:"Thrust", alvo:"0–60 mph < 0,9 s · propulsores verticais e laterais (sem traseiros)", trasFrac:0},
+  rocket:{nome:"Rocket", alvo:"0–60 mph < 0,59 s · todos os propulsores", trasFrac:1}
+};
+const _els = new Map();
+const $ = id => { let e=_els.get(id); if(!e||!e.isConnected){ e=document.getElementById(id); if(e) _els.set(id,e); } return e; };
+const _txt = new Map();
+function txt(id,v){ if(_txt.get(id)!==v){ _txt.set(id,v); $(id).textContent=v; } }
+
+// ======= Geometria e seleção de pista =======
+const R_LOOP = 9, X_LOOP = 80, ARCO_LOOP = Math.PI;
+let tipoPista = "reta";
+const suave = t => t<=0?0:t>=1?1:t*t*(3-2*t);
+function alturaPista(x){
+  if (tipoPista !== "obstaculos") return 0;
+  if (x < 20) return 0;
+  if (x < 35) return 2.5*suave((x-20)/15);
+  if (x < 50) return 2.5;
+  if (x < 65) return 2.5*(1-suave((x-50)/15));
+  return 0;
+}
+function pontoLoop(theta){
+  return {x:X_LOOP+R_LOOP*Math.sin(theta), y:R_LOOP*(1-Math.cos(theta)), angulo:theta};
+}
+const inclinacao = x => (alturaPista(x+0.05) - alturaPista(x-0.05)) / 0.1;
+const V_MIN_LOOP = Math.sqrt(5*G*R_LOOP);
+const OBSTACULOS = [{x:100,h:1.2},{x:115,h:1.8},{x:130,h:2.4}].map(o=>({...o,w:1.5,base:0}));
+const obstaculosAtivos = () => tipoPista === "obstaculos" ? OBSTACULOS : [];
+let falha = null;
+
+// ======= Estado =======
+const params = {massa:2000, cd:0.25, area:1.9, motor:34000, vazaoMax:40, isp:70, lift:false};
+const teclas = {up:false, down:false, left:false, right:false, space:false, shift:false, air:false};
+let modo = "performance", propulsoresLigados = false;
+// Sucção ativa por ventilação: 4 ventiladores exaurem o ar entre o assoalho e a pista;
+// vedações móveis limitam a entrada de ar e a pressão atmosférica empurra o carro (F = ΔP·A).
+// A força não depende da velocidade, só da folga entre o assoalho e a superfície.
+const SUCCAO = {ventiladores:4, fatorPeso:2.2, areaAssoalho:6.5, vedacao:0.05, alcance:0.12, jatoLivre:0.03};
+let succaoLigada = false;
+function folgaSuccao(){
+  if (carro.loopTheta !== null) return 0;
+  const a = carro.angulo, nx = -Math.sin(a), ny = Math.cos(a);           // "para cima" do carro
+  const px = carro.posicao.x + ALT/2*Math.sin(a), py = carro.posicao.y + ALT/2 - ALT/2*Math.cos(a); // centro do assoalho
+  let folga = Infinity;
+  if (ny > 0.5) folga = Math.max(0, (py - alturaPista(px))*ny);          // rodas voltadas para o chão
+  if (tipoPista === "loop" && px >= X_LOOP){
+    const rx = px-X_LOOP, ry = py-R_LOOP, r = Math.hypot(rx, ry);
+    if (r > 1e-6 && r < R_LOOP && -(nx*rx+ny*ry)/r > 0.5) folga = Math.min(folga, R_LOOP-r); // rodas voltadas para a rampa
+  }
+  return folga;
+}
+function calcularSuccao(m, folga){
+  if (!succaoLigada) return {forca:0, pressao:0, eficiencia:0, folga};
+  const eficiencia = folga <= SUCCAO.vedacao ? 1 : Math.exp(-(folga-SUCCAO.vedacao)/SUCCAO.alcance);
+  const vacuo = SUCCAO.fatorPeso*m*G*eficiencia;            // ΔP·A do vácuo parcial
+  const jato = SUCCAO.jatoLivre*m*G*(1-eficiencia);         // só o jato dos ventiladores, longe da pista
+  return {forca:vacuo+jato, pressao:vacuo/SUCCAO.areaAssoalho, eficiencia, folga};
+}
+let carro, comandos, tempo, historico, marca060;
+
+function reiniciar(){
+  carro = {loopTheta:null, loopVel:0, giroLivre:false, posicao:{x:tipoPista === "loop" ? 55 : 0,y:0}, vel:{x:0,y:0}, acel:0, angulo:0, omega:0, gas:GAS_INICIAL,
+           noChao:true, tempoVoo:0, empuxo:0, empuxoV:0, arrasto:0, vazao:0, succao:{forca:0,pressao:0,eficiencia:0,folga:0}};
+  comandos = {motor:0, freio:0, vert:0, lat:0, tras:0};
+  tempo = 0; historico = []; marca060 = null; falha = null;
+  if (window.msgFalha) msgFalha.style.display='none';
+  const gas = document.getElementById('msgGas'); if (gas) gas.hidden = true;
+}
+reiniciar();
+
+// ======= Teclado (só altera o objeto teclas) =======
+const MAPA = {KeyW:"up",ArrowUp:"up",KeyS:"down",ArrowDown:"down",KeyA:"left",ArrowLeft:"left",
+              KeyD:"right",ArrowRight:"right",Space:"space",ShiftLeft:"shift",ShiftRight:"shift",KeyE:"air"};
+const BLOQUEAR = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"]);
+addEventListener("keydown", e=>{
+  if (BLOQUEAR.has(e.code)) e.preventDefault();
+  if (e.target.tagName === "INPUT" && !MAPA[e.code]) return;
+  if (MAPA[e.code]) teclas[MAPA[e.code]] = true;
+  if (e.code==="KeyR" && !e.repeat) reiniciar();
+  if (e.code==="KeyT" && !e.repeat) alternarPropulsores();
+  if (e.code==="KeyF" && !e.repeat) alternarSuccao();
+});
+addEventListener("keyup", e=>{ if (MAPA[e.code]) teclas[MAPA[e.code]] = false; });
+addEventListener("blur", ()=>{ for (const k in teclas) teclas[k]=false; });
+
+// Botões de segurar (mouse e toque)
+document.querySelectorAll("[data-hold],[data-k]").forEach(b=>{
+  const k = b.dataset.hold || b.dataset.k;
+  const on = e=>{ e.preventDefault(); teclas[k]=true; if(b.disabled){teclas[k]=false;return;} if(k!=="up"&&k!=="down"&&!propulsoresLigados&&modo!=="performance") alternarPropulsores(); };
+  const off = ()=>{ teclas[k]=false; };
+  b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off);
+  b.addEventListener("pointerleave", off); b.addEventListener("pointercancel", off);
+});
+$("btnReset").onclick = reiniciar;
+$("btnGasReset").onclick = reiniciar;
+function abrirAjustes(aberto){
+  $("ajustes").hidden = !aberto;
+  $("btnAjustes").setAttribute("aria-expanded",String(aberto));
+  $("btnAjustes").setAttribute("aria-label",aberto ? "Fechar ajustes" : "Abrir ajustes");
+  if (aberto) $("btnFechar").focus(); else $("btnAjustes").focus();
+  dimGrafico(); desenharGrafico();
+}
+$("btnAjustes").onclick = ()=>abrirAjustes($("ajustes").hidden);
+$("btnFechar").onclick = ()=>abrirAjustes(false);
+$("ajustes").querySelector("details").addEventListener("toggle",()=>{dimGrafico(); desenharGrafico();});
+addEventListener("keydown",e=>{if(e.code === "Escape" && !$("ajustes").hidden) abrirAjustes(false);});
+$("btnProp").onclick = alternarPropulsores;
+$("btnSuccao").onclick = alternarSuccao;
+function alternarSuccao(){
+  succaoLigada = !succaoLigada;
+  $("btnSuccao").classList.toggle("on",succaoLigada);
+  $("btnSuccao").setAttribute("aria-pressed",String(succaoLigada));
+  $("btnSuccao").textContent = "Sucção: " + (succaoLigada ? "LIGADA" : "DESLIGADA");
+}
+function alternarPropulsores(){
+  if (modo==="performance"){ propulsoresLigados=false; return; }
+  propulsoresLigados = !propulsoresLigados;
+  $("btnProp").classList.toggle("on", propulsoresLigados);
+  $("btnProp").setAttribute("aria-pressed",String(propulsoresLigados));
+  $("btnProp").textContent = "Propulsores: " + (propulsoresLigados ? "LIGADOS" : "DESLIGADOS");
+}
+document.querySelectorAll("[data-modo]").forEach(b=> b.onclick = ()=>{
+  modo = b.dataset.modo;
+  document.querySelectorAll("[data-modo]").forEach(x=>x.classList.toggle("on", x===b));
+  if (modo==="performance" && propulsoresLigados){ modo="rocket"; alternarPropulsores(); modo="performance"; }
+  if (modo!=="performance" && !propulsoresLigados) alternarPropulsores();
+  atualizarDescModo(); aplicarModo();
+});
+function atualizarDescModo(){ $("modoDesc").textContent = MODOS[modo].alvo + " · autonomia > 300 mi · máx > 230 mph"; }
+atualizarDescModo();
+function aplicarModo(){
+  const perf = modo==="performance", aviso=$("avisoProp");
+  $("btnProp").disabled = perf;
+  if (perf) $("btnProp").textContent = "Propulsores: INDISPONÍVEIS";
+  else $("btnProp").textContent = "Propulsores: " + (propulsoresLigados ? "LIGADOS" : "DESLIGADOS");
+  document.querySelectorAll("#conducao [data-hold]").forEach(b=>{
+    b.disabled = perf || (modo==="thrust" && b.dataset.hold==="air");
+  });
+  aviso.hidden = modo==="rocket";
+  aviso.textContent = perf ? "Performance: sucção disponível; sem propulsores."
+    : "Modelo Thrust: sem propulsores traseiros (Avançar indisponível).";
+  if (perf) teclas.space=teclas.shift=teclas.air=teclas.left=teclas.right=false;
+}
+aplicarModo();
+function abrirTutorial(v){ $("tutorial").hidden=!v; if(v) $("btnTutOk").focus(); }
+$("btnTutOk").onclick=()=>{ abrirTutorial(false); try{localStorage.setItem("tutorialVisto","1");}catch(e){} };
+$("btnTut").onclick=()=>abrirTutorial(true);
+try{ if(!localStorage.getItem("tutorialVisto")) abrirTutorial(true); }catch(e){ abrirTutorial(true); }
+
+// Sliders
+const sliders = [["sMassa","massa","vMassa",v=>v+" kg"],["sCd","cd","vCd",v=>v.toFixed(2)],
+  ["sArea","area","vArea",v=>v.toFixed(2)+" m²"],["sMotor","motor","vMotor",v=>(v/1000).toFixed(1)+" kN"],
+  ["sFlow","vazaoMax","vFlow",v=>v+" kg/s"],["sIsp","isp","vIsp",v=>v+" s"]];
+for (const [id,key,lab,fmt] of sliders){
+  const el=$(id); const upd=()=>{ params[key]=parseFloat(el.value); $(lab).textContent=fmt(params[key]); };
+  el.addEventListener("input",upd); upd();
+}
+$("cLift").onchange = e=> params.lift = e.target.checked;
+
+// ======= Controles: lê teclas → define comandos =======
+function atualizarControles(){
+  comandos.motor = teclas.up ? 1 : 0;
+  comandos.freio = teclas.down ? 1 : 0;
+  comandos.lat = (teclas.left?1:0) - (teclas.right?1:0);       // + = gira anti-horário (nariz para cima)
+  // Traseiros: no modo Thrust/Rocket ao acelerar, ou "avançar no ar"
+  comandos.tras = Math.max(teclas.up ? MODOS[modo].trasFrac : 0, teclas.air ? 0.6 : 0);
+  // Verticais
+  comandos.vert = 0;
+  if (teclas.space) comandos.vert = 1;
+  else if (teclas.shift && !carro.noChao){
+    // pouso suave: busca vy = -1,5 m/s
+    const fMax = params.vazaoMax * params.isp * G0;
+    const necessario = params.massa * (G + 2.5*(-1.5 - carro.vel.y));
+    comandos.vert = Math.min(1, Math.max(0, necessario / fMax));
+  }
+  if (modo==="thrust") comandos.tras = 0;
+  if (!propulsoresLigados || modo==="performance"){ comandos.tras = 0; comandos.vert = 0; comandos.lat = carro.noChao ? 0 : comandos.lat*0; }
+}
+
+// ======= Física =======
+function atualizarFisica(dt){
+  if (carro.loopTheta !== null){ atualizarFisicaLoop(dt); return; }
+  const xAnterior = carro.posicao.x;
+  const centroAnterior = {x:carro.posicao.x, y:carro.posicao.y+ALT/2};
+  const m = params.massa + carro.gas;          // massa inclui gás
+  const I = m * (COMPR*COMPR + ALT*ALT) / 12;  // momento de inércia do retângulo
+  const v = Math.hypot(carro.vel.x, carro.vel.y);
+  const q = 0.5 * RHO * params.area * v * v;
+
+  // Distribuição dos 10 propulsores: 4 traseiros, 4 verticais, 2 laterais
+  let fr = {tras:comandos.tras*0.4*1.6, vert:comandos.vert*0.8*1.25, lat:Math.abs(comandos.lat)*0.15};
+  let soma = fr.tras + fr.vert + fr.lat;
+  if (soma > 1){ fr.tras/=soma; fr.vert/=soma; fr.lat/=soma; soma = 1; }
+  let vazao = carro.gas > 0 ? soma * params.vazaoMax : 0;
+  if (vazao*dt > carro.gas){ const k = carro.gas/(vazao*dt); vazao*=k; fr.tras*=k; fr.vert*=k; fr.lat*=k; }
+  if (carro.gas <= 0){ fr = {tras:0,vert:0,lat:0}; vazao = 0; }
+  carro.gas = Math.max(0, carro.gas - vazao*dt);
+  const fUnit = params.vazaoMax * params.isp * G0;  // F = ṁ·Isp·g0 com vazão total
+  const Ftras = fr.tras * fUnit, Fvert = fr.vert * fUnit, Flat = fr.lat * fUnit;
+
+  // Empuxo no referencial do carro, girado pelo ângulo
+  const c = Math.cos(carro.angulo), s = Math.sin(carro.angulo);
+  let Fx = Ftras*c - Fvert*s, Fy = Ftras*s + Fvert*c;
+
+  // Motor elétrico (só no chão), limitado pela aderência
+  const down = carro.noChao ? C_DOWN*q : 0;
+  const succ = calcularSuccao(m, folgaSuccao());
+  carro.succao = succ;
+  const normal = m*G + down + (carro.noChao ? succ.forca : 0);
+  let Fmotor = 0;
+  if (carro.noChao){
+    Fmotor = comandos.motor * params.motor * Math.max(0, 1 - carro.vel.x / V_MAX);
+    Fmotor = Math.min(Fmotor, MU*normal);
+    if (comandos.freio && carro.vel.x > 0) Fmotor -= MU*normal*0.9;
+    const th = Math.atan(inclinacao(carro.posicao.x));
+    Fx += Fmotor*Math.cos(th); Fy += Fmotor*Math.sin(th);
+  }
+  // Arrasto e sustentação
+  const Fd = params.cd * q;
+  if (v > 0.01){ Fx -= Fd*carro.vel.x/v; Fy -= Fd*carro.vel.y/v; }
+  if (params.lift) Fy += C_L * 0.5*RHO*params.area*carro.vel.x*carro.vel.x;
+  // Gravidade
+  Fy -= m*G;
+  // Sucção em direção às rodas: vácuo pleno na pista, só o jato dos ventiladores no ar.
+  const Fsuccao = succ.forca;
+  Fx += Fsuccao*s; Fy -= Fsuccao*c;
+  // Atrito de rolamento leve no chão
+  if (carro.noChao && Math.abs(carro.vel.x) > 0.05) Fx -= 0.015*normal*Math.sign(carro.vel.x);
+
+  const ax = Fx/m, ay = Fy/m;
+  carro.vel.x += ax*dt; carro.vel.y += ay*dt;
+  if (carro.vel.x < 0 && carro.noChao && !comandos.tras && Math.abs(inclinacao(carro.posicao.x))<0.01) carro.vel.x = 0;
+  // Sucção ligada em subida: o atrito estático (força contra a pista > peso) segura o carro parado.
+  if (carro.noChao && succaoLigada && !comandos.tras){
+    const th = Math.atan(inclinacao(carro.posicao.x));
+    const tangencial = carro.vel.x*Math.cos(th)+carro.vel.y*Math.sin(th);
+    if (tangencial < 0 && MU*normal >= m*G*Math.abs(Math.sin(th))){ carro.vel.x = 0; carro.vel.y = 0; }
+  }
+  carro.posicao.x += carro.vel.x*dt; carro.posicao.y += carro.vel.y*dt;
+
+  // Rotação: τ = r·F
+  const tau = carro.noChao ? 0 : comandos.lat * R_LATERAL * Flat;   // no chão as rodas ficam apoiadas
+  if (carro.noChao) carro.omega = 0;
+  carro.omega += (tau / I) * dt;
+  if (!carro.noChao && comandos.lat === 0) carro.omega *= Math.exp(-2.5*dt);   // estabilização
+  carro.omega = Math.max(-3, Math.min(3, carro.omega));
+  carro.angulo += carro.omega*dt;
+  if (!carro.noChao) carro.angulo = Math.atan2(Math.sin(carro.angulo), Math.cos(carro.angulo));   // giro livre de 360°
+
+  const contatoLoop = colisaoLoop(centroAnterior);
+  if (!contatoLoop) colisaoChao(dt, m, I);
+  if (tipoPista === "loop" && carro.loopTheta === null && carro.noChao && xAnterior < X_LOOP && carro.posicao.x >= X_LOOP){
+    carro.loopTheta = 0; carro.loopVel = Math.max(0,carro.vel.x); posicionarNoLoop();
+  }
+
+  if (!carro.noChao) carro.tempoVoo += dt;
+  carro.acel = Math.hypot(ax, carro.noChao ? 0 : ay);
+  carro.empuxo = Ftras + Fvert + Flat + Fsuccao;
+  carro.empuxoV = (Fvert-Fsuccao)*c + Ftras*s; carro.arrasto = Fd; carro.vazao = vazao;
+}
+
+// Arco paramétrico: uma pista em C não pode ser representada por y=f(x).
+// Colisão contínua com ambas as faces do arco, sem estado de "já passou".
+function colisaoLoop(anterior){
+  if (tipoPista !== "loop") return false;
+  const dx = carro.posicao.x-anterior.x, dy = carro.posicao.y+ALT/2-anterior.y;
+  const px = anterior.x-X_LOOP, py = anterior.y-R_LOOP;
+  const a = dx*dx+dy*dy;
+  if (a < 1e-12) return false;
+  const contatos = [];
+  for (const lado of [-1,1]){
+    const raio = R_LOOP+lado*ALT/2;
+    const b = 2*(px*dx+py*dy), c = px*px+py*py-raio*raio;
+    const discriminante = b*b-4*a*c;
+    if (discriminante < 0) continue;
+    for (const t of [(-b-Math.sqrt(discriminante))/(2*a),(-b+Math.sqrt(discriminante))/(2*a)]){
+      if (t < -1e-8 || t > 1) continue;
+      const x = px+dx*t, y = py+dy*t;
+      if (x < -1e-8) continue; // A metade aberta não tem superfície.
+      const theta = Math.max(0,Math.min(ARCO_LOOP,Math.atan2(x,-y)));
+      const nx = lado*x/raio, ny = lado*y/raio;
+      if (dx*nx+dy*ny >= -1e-8) continue; // Apenas aproximação, nunca saída.
+      const tangente = carro.vel.x*Math.cos(theta)+carro.vel.y*Math.sin(theta);
+      if ((theta < 1e-7 && tangente < 0) || (theta > ARCO_LOOP-1e-7 && tangente > 0)) continue;
+      contatos.push({t,theta,lado,nx,ny,raio,tangente});
+    }
+  }
+  contatos.sort((a,b)=>a.t-b.t);
+  const contato = contatos[0];
+  if (!contato) return false;
+  const {theta,lado,nx,ny,raio,tangente} = contato;
+  if (lado === -1){
+    carro.loopTheta=theta; carro.loopVel=tangente; posicionarNoLoop();
+  } else {
+    carro.posicao.x=X_LOOP+raio*Math.sin(theta);
+    carro.posicao.y=R_LOOP-raio*Math.cos(theta)-ALT/2;
+    const vn=carro.vel.x*nx+carro.vel.y*ny;
+    if (vn < 0){ carro.vel.x-=(1+RESTITUICAO)*vn*nx; carro.vel.y-=(1+RESTITUICAO)*vn*ny; }
+    carro.noChao=false;
+  }
+  return true;
+}
+function posicionarNoLoop(){
+  const theta = carro.loopTheta;
+  if (theta === null) return;
+  const p = pontoLoop(theta), c = Math.cos(theta), s = Math.sin(theta);
+  carro.posicao.x = p.x - ALT/2*s;
+  carro.posicao.y = p.y + ALT/2*c - ALT/2;
+  carro.angulo = theta;
+  carro.vel.x = carro.loopVel*c; carro.vel.y = carro.loopVel*s;
+  carro.noChao = true;
+}
+function atualizarFisicaLoop(dt){
+  const theta = carro.loopTheta;
+  if (theta === null) return;
+  const m = params.massa+carro.gas;
+  const traseiro = modo === "rocket" ? comandos.tras*0.64 : 0;
+  const vertical = modo !== "performance" ? comandos.vert : 0;
+  const demanda = traseiro+vertical;
+  const vazao = propulsoresLigados && dt > 0 ? Math.min(carro.gas/dt,params.vazaoMax*Math.min(1,demanda)) : 0;
+  const empuxo = demanda > 0 ? vazao*params.isp*G0*traseiro/demanda : 0;
+  const empuxoVertical = demanda > 0 ? vazao*params.isp*G0*vertical/demanda : 0;
+  carro.gas = Math.max(0,carro.gas-vazao*dt);
+  const drag = 0.5*RHO*params.cd*params.area*carro.loopVel**2;
+  const succ = calcularSuccao(m, 0);   // em contato com a rampa: vedação completa
+  carro.succao = succ;
+  const Fsuccao = succ.forca;
+  const carga = m*G+Fsuccao;
+  const motor = comandos.motor*Math.min(params.motor,MU*carga)*Math.max(0,1-Math.abs(carro.loopVel)/V_MAX);
+  const livre = (motor+empuxo-drag*Math.sign(carro.loopVel))/m-G*Math.sin(theta);
+  const freio = comandos.freio*MU*carga/m;
+  const velocidadeLivre = carro.loopVel+livre*dt;
+  const restante = Math.max(0,Math.abs(velocidadeLivre)-freio*dt);
+  let novaVel = restante > 0 ? Math.sign(velocidadeLivre)*restante : 0;
+  // Com sucção, a força contra a pista (> peso) dá atrito estático para segurar o carro:
+  // ele perde velocidade subindo, para e fica no mesmo lugar, sem escorregar para trás.
+  if (succaoLigada && novaVel < 0){
+    const contato = m*(carro.loopVel**2/R_LOOP+G*Math.cos(theta))+Fsuccao-empuxoVertical;
+    const retencao = MU*Math.max(0,contato)/m;
+    if (retencao >= G*Math.sin(theta)) novaVel = carro.loopVel >= 0 ? 0 : Math.min(0,carro.loopVel+(retencao-G*Math.sin(theta))*dt);
+  }
+  const aceleracao = (novaVel-carro.loopVel)/dt;
+  carro.loopVel = novaVel;
+  carro.loopTheta = Math.max(0,Math.min(ARCO_LOOP,theta+carro.loopVel*dt/R_LOOP));
+  posicionarNoLoop();
+  carro.empuxo=empuxo+empuxoVertical+Fsuccao; carro.empuxoV=empuxo*Math.sin(theta)+(empuxoVertical-Fsuccao)*Math.cos(theta); carro.vazao=vazao; carro.arrasto=drag; carro.acel=Math.abs(aceleracao);
+  const normal = carro.loopVel**2/R_LOOP+G*Math.cos(carro.loopTheta)-empuxoVertical/m;
+  const capacidade = Fsuccao/m;
+  if (carro.loopTheta >= ARCO_LOOP || normal < -capacidade){
+    carro.loopTheta=null; carro.noChao=false; carro.giroLivre=true; // mantém a orientação (ex.: de cabeça para baixo)
+  } else if (carro.loopTheta === 0 && carro.loopVel < 0){
+    carro.loopTheta=null;
+  }
+}
+
+function cantosCarro(){
+  const cx = carro.posicao.x, cy = carro.posicao.y + ALT/2;
+  const c = Math.cos(carro.angulo), sn = Math.sin(carro.angulo);
+  return [[-COMPR/2,-ALT/2],[COMPR/2,-ALT/2],[COMPR/2,ALT/2],[-COMPR/2,ALT/2]]
+    .map(([lx,ly])=>[cx + lx*c - ly*sn, cy + lx*sn + ly*c]);
+}
+function colisaoChao(dt, m, I){
+  const cx = carro.posicao.x, cy = carro.posicao.y + ALT/2;
+  // canto mais baixo em relação à pista
+  let pen = Infinity, rxContato = 0;
+  for (const [wx,wy] of cantosCarro()){
+    const d = wy - alturaPista(wx);
+    if (d < pen){ pen = d; rxContato = wx - cx; }
+  }
+  const dC = carro.posicao.y - alturaPista(cx); pen = Math.min(pen, dC);
+  const tol = carro.noChao ? 0.12 : 0.001;
+  const sl = inclinacao(cx), nl = Math.hypot(1, sl), nx = -sl/nl, ny = 1/nl;
+  let vn = carro.vel.x*nx + carro.vel.y*ny;
+  const decolando = comandos.vert > 0 && vn > 0.3;
+  if (pen <= tol && !decolando){
+    const rel = Math.atan2(Math.sin(carro.angulo - Math.atan(sl)), Math.cos(carro.angulo - Math.atan(sl)));
+    if (Math.abs(rel) > Math.PI/2){                 // bateu com o teto no chão
+      carro.posicao.y -= pen; carro.vel.x = 0; carro.vel.y = 0; carro.omega = 0; carro.capotou = true; return;
+    }
+    carro.posicao.y -= pen;                         // corrige penetração / gruda na pista
+    if (vn < 0){
+      const e = -vn > 0.5 ? RESTITUICAO : 0;        // restituição 0,15
+      carro.vel.x -= (1+e)*vn*nx; carro.vel.y -= (1+e)*vn*ny;
+      if (e === 0) vn = 0;
+    }
+    const alvo = Math.atan(sl);
+    const erro = carro.angulo - alvo;
+    if (Math.abs(erro) > 0.02) carro.omega += (-rxContato * m*G * 0.6 / I) * dt;
+    carro.omega *= Math.exp(-6*dt);
+    carro.angulo = succaoLigada ? alvo : alvo + erro*Math.exp(-14*dt);   // segue a inclinação
+    if (Math.abs(carro.angulo - alvo) < 0.03){ carro.angulo = alvo; carro.omega = 0; }
+    // reassenta: após girar, o canto mais baixo volta a tocar a pista (sem folga)
+    let pen2 = Infinity;
+    for (const [wx,wy] of cantosCarro()) pen2 = Math.min(pen2, wy - alturaPista(wx));
+    pen2 = Math.min(pen2, carro.posicao.y - alturaPista(carro.posicao.x));
+    carro.posicao.y -= pen2;
+    if (succaoLigada){
+      const normalVel = carro.vel.x*nx+carro.vel.y*ny;
+      carro.vel.x -= normalVel*nx; carro.vel.y -= normalVel*ny; carro.omega = 0;
+    }
+    if (carro.vel.y*ny + carro.vel.x*nx > 0 && comandos.vert === 0){ carro.vel.y -= (carro.vel.x*nx + carro.vel.y*ny)*ny; }
+    carro.vel.x *= Math.exp(-0.02*dt);
+    carro.noChao = true; carro.giroLivre = false;
+  } else carro.noChao = false;
+}
+function colisaoObstaculos(){
+  const cs = cantosCarro();
+  const x0 = Math.min(...cs.map(c=>c[0])), x1 = Math.max(...cs.map(c=>c[0]));
+  const y0 = Math.min(...cs.map(c=>c[1])), y1 = Math.max(...cs.map(c=>c[1]));
+  for (const o of obstaculosAtivos()){
+    if (x1 > o.x-o.w/2 && x0 < o.x+o.w/2 && y1 > o.base && y0 < o.base+o.h) return o;
+  }
+  return null;
+}
+
+// ======= Cena 3D =======
+const container = $("cena");
+const palette = getComputedStyle(document.documentElement);
+const couleur = role => palette.getPropertyValue('--'+role).trim();
+const renderer = new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance",stencil:false});
+let resolucao = Math.min(devicePixelRatio,1.5);
+renderer.setPixelRatio(resolucao);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+container.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const skyCanvas = document.createElement('canvas'); skyCanvas.width=16; skyCanvas.height=512;
+const skyContext=skyCanvas.getContext('2d');
+const skyGradient=skyContext.createLinearGradient(0,0,0,512);
+skyGradient.addColorStop(0,couleur('sky')); skyGradient.addColorStop(1,couleur('horizon'));
+skyContext.fillStyle=skyGradient; skyContext.fillRect(0,0,16,512);
+const skyTexture=new THREE.CanvasTexture(skyCanvas); skyTexture.colorSpace=THREE.SRGBColorSpace;
+scene.background=skyTexture;
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+scene.add(new THREE.HemisphereLight(couleur('ambient'), couleur('ground-light'), 2));
+const sol = new THREE.DirectionalLight(couleur('sun'), 3);
+sol.position.set(-30,50,30); sol.castShadow = true;
+sol.shadow.mapSize.set(1024,1024);
+sol.shadow.bias=-0.00015; sol.shadow.normalBias=0.035; sol.shadow.radius=3;
+Object.assign(sol.shadow.camera,{left:-32,right:32,top:32,bottom:-32,near:1,far:140});
+scene.add(sol, sol.target);
+// Soft studio reflections, generated locally; no external model or texture needed.
+const reflectionScene=new THREE.Scene(); reflectionScene.background=new THREE.Color(couleur('sky'));
+for(const [x,y,z,w,h] of [[0,8,0,18,10],[0,3,8,16,3],[0,3,-8,16,3]]){
+  const panel=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:couleur('headlight'),side:THREE.DoubleSide}));
+  panel.position.set(x,y,z); panel.lookAt(0,0,0); reflectionScene.add(panel);
+}
+const pmrem=new THREE.PMREMGenerator(renderer);
+const reflectionMap=pmrem.fromScene(reflectionScene,0.08); scene.environment=reflectionMap.texture;
+pmrem.dispose(); reflectionScene.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose();}});
+
+// Pista com textura de canvas
+function texPista(){
+  const cv=document.createElement("canvas"); cv.width=512; cv.height=256; const g=cv.getContext("2d");
+  g.fillStyle=couleur('asphalt'); g.fillRect(0,0,512,256);
+  for(let i=0;i<16000;i++){g.globalAlpha=0.025+Math.random()*0.055;g.fillStyle=i%2?couleur('road-line'):couleur('rubber');g.fillRect(Math.random()*512,Math.random()*256,1,1);}g.globalAlpha=1;
+  g.fillStyle=couleur('road-line'); g.fillRect(0,14,512,3); g.fillRect(0,239,512,3);
+  for(let x=0;x<512;x+=128) g.fillRect(x,127,64,3);
+  for(let x=0;x<512;x+=32){g.fillStyle=(x/32)%2?couleur('road-line'):couleur('curb');g.fillRect(x,0,32,9);g.fillRect(x,247,32,9);}
+  const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t;
+}
+const tPista = texPista(); const PISTA_L = 600; tPista.repeat.set(PISTA_L/24,1);
+const pista = new THREE.Mesh(new THREE.PlaneGeometry(PISTA_L,14), new THREE.MeshStandardMaterial({map:tPista,roughness:.9}));
+pista.rotation.x=-Math.PI/2; pista.receiveShadow=true; scene.add(pista);
+const terrainCanvas=document.createElement('canvas');terrainCanvas.width=terrainCanvas.height=256;
+const terrainContext=terrainCanvas.getContext('2d');terrainContext.fillStyle=couleur('terrain');terrainContext.fillRect(0,0,256,256);
+for(let i=0;i<18000;i++){terrainContext.globalAlpha=Math.random()*0.12;terrainContext.fillStyle=i%2?couleur('road-line'):couleur('ground-light');terrainContext.fillRect(Math.random()*256,Math.random()*256,1,3);}
+const terrainTexture=new THREE.CanvasTexture(terrainCanvas);terrainTexture.colorSpace=THREE.SRGBColorSpace;terrainTexture.wrapS=terrainTexture.wrapT=THREE.RepeatWrapping;terrainTexture.repeat.set(80,50);
+const grama = new THREE.Mesh(new THREE.PlaneGeometry(PISTA_L,400), new THREE.MeshStandardMaterial({map:terrainTexture,roughness:1}));
+grama.rotation.x=-Math.PI/2; grama.position.y=-0.025; grama.receiveShadow=true; scene.add(grama);
+// Marcos laterais
+const marcos = new THREE.Group(); scene.add(marcos);
+const geoM = new THREE.BoxGeometry(0.3,1.2,0.3);
+const marcoMatrix=new THREE.Matrix4();
+for(const destaque of [false,true]){
+  const markers=new THREE.InstancedMesh(geoM,new THREE.MeshStandardMaterial({color:couleur(destaque?'curb':'road-line')}),destaque?12:48);
+  let index=0;
+  for(let i=0;i<30;i++){if((i%5===0)!==destaque)continue;for(const z of [-8,8]){marcoMatrix.makeTranslation(i*20,.6,z);markers.setMatrixAt(index++,marcoMatrix);}}
+  markers.instanceMatrix.needsUpdate=true;marcos.add(markers);
+}
+
+// Apenas a pista escolhida participa da cena e das colisões.
+const trecho = new THREE.Group(); scene.add(trecho);
+const caixas = new THREE.Group(); scene.add(caixas);
+function limparGrupo(grupo){
+  for (const obj of [...grupo.children]){
+    grupo.remove(obj); obj.geometry?.dispose();
+    if (obj.material){ obj.material.map?.dispose(); obj.material.dispose(); }
+  }
+}
+function construirPista(){
+  limparGrupo(trecho); limparGrupo(caixas);
+  renderer.shadowMap.needsUpdate=true;
+  const pos=[],uv=[],idx=[],N=360;
+  if (tipoPista !== "reta"){
+    for(let i=0;i<=N;i++){
+      const t=i/N;
+      const p=tipoPista === "loop" ? pontoLoop(t*ARCO_LOOP) : {x:15+55*t,y:alturaPista(15+55*t)+0.02};
+      pos.push(p.x,p.y,-7,p.x,p.y,7); uv.push(t*5,0,t*5,1);
+      if(i<N){ const a=i*2; idx.push(a,a+1,a+2,a+1,a+3,a+2); }
+    }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(pos,3)); g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
+    const t=tPista.clone(); t.repeat.set(1,1); t.needsUpdate=true;
+    const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:t,roughness:.85,side:THREE.DoubleSide})); m.receiveShadow=m.castShadow=true; trecho.add(m);
+  }
+  for(const o of obstaculosAtivos()){
+    o.base=alturaPista(o.x);
+    const cv=document.createElement("canvas"); cv.width=cv.height=64; const g=cv.getContext("2d");
+    for(let i=0;i<8;i++){ g.fillStyle=i%2?"#f2a93b":"#1a1a1a"; g.beginPath(); g.moveTo(i*16-32,0); g.lineTo(i*16-16,0); g.lineTo(i*16+48,64); g.lineTo(i*16+32,64); g.fill(); }
+    const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(o.w,o.h,10),new THREE.MeshStandardMaterial({map:t,roughness:.6}));
+    b.position.set(o.x,o.base+o.h/2,0); b.castShadow=b.receiveShadow=true; caixas.add(b);
+  }
+  container.dataset.pista=tipoPista;
+  $("desafio").style.display=tipoPista === "reta" ? "none" : "grid";
+  $("hReq").parentElement.style.display=tipoPista === "obstaculos" ? "block" : "none";
+  $("hLoop").parentElement.style.display=tipoPista === "loop" ? "block" : "none";
+}
+$("tipoPista").addEventListener("change",e=>{
+  tipoPista=e.target.value;
+  for(const k in teclas) teclas[k]=false;
+  reiniciar(); construirPista(); atualizarHUD(); desenharGrafico();
+});
+construirPista();
+
+// Sculpted Roadster silhouette, with bevelled bodywork and detailed wheels.
+const carroModelo = new THREE.Group(); scene.add(carroModelo);
+const corpo = new THREE.Group(); corpo.position.y = -ALT/2; carroModelo.add(corpo);
+const tinta = new THREE.MeshPhysicalMaterial({color:couleur('paint'),metalness:.65,roughness:.22,clearcoat:1,clearcoatRoughness:.12,envMapIntensity:1.1});
+const vidro = new THREE.MeshPhysicalMaterial({color:couleur('glass'),metalness:.35,roughness:.12,clearcoat:1,envMapIntensity:1.5});
+const preto = new THREE.MeshStandardMaterial({color:couleur('carbon'),roughness:.65});
+const borracha=new THREE.MeshStandardMaterial({color:couleur('rubber'),roughness:.92});
+const metal=new THREE.MeshStandardMaterial({color:couleur('alloy'),metalness:.9,roughness:.23});
+const farol=new THREE.MeshStandardMaterial({color:couleur('headlight'),emissive:couleur('headlight'),emissiveIntensity:2});
+const luzFreio=new THREE.MeshStandardMaterial({color:couleur('taillight'),emissive:couleur('taillight'),emissiveIntensity:1.5});
+function perfil(points,depth,material,bevel=0){
+  const shape=new THREE.Shape();points.forEach(([x,y],i)=>i?shape.lineTo(x,y):shape.moveTo(x,y));shape.closePath();
+  const geometry=new THREE.ExtrudeGeometry(shape,{depth,bevelEnabled:bevel>0,bevelSize:bevel,bevelThickness:bevel,bevelSegments:3,steps:1,curveSegments:12});
+  geometry.translate(0,0,-depth/2);const mesh=new THREE.Mesh(geometry,material);corpo.add(mesh);return mesh;
+}
+function detalhe(w,h,d,x,y,z,material){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);mesh.position.set(x,y,z);corpo.add(mesh);return mesh;}
+perfil([[-2.02,.35],[-2.05,.67],[-1.65,.82],[-.85,.85],[.75,.72],[1.7,.63],[2.02,.48],[2.02,.32],[1.55,.25],[-1.65,.25]],1.76,tinta,.055);
+perfil([[-1.13,.8],[-.64,1.14],[.28,1.14],[.94,.7]],1.37,vidro,.035);
+// Body-colour pillars, roof and slim side sills.
+perfil([[-1.17,.79],[-.68,1.19],[-.57,1.19],[-1.03,.79]],1.43,tinta,.015);
+detalhe(.98,.035,1.45,-.18,1.19,0,tinta);
+for(const z of [-.91,.91]){
+  detalhe(2.45,.09,.06,0,.27,z,preto);
+  detalhe(.19,.028,.018,-.35,.75,z,metal);
+  detalhe(.23,.085,.15,.72,.88,z,tinta);
+}
+detalhe(.11,.08,1.7,-2.04,.84,0,preto);
+detalhe(.08,.12,1.6,-2.07,.31,0,preto);
+detalhe(.045,.14,1.14,2.065,.36,0,preto);
+for(const z of [-.65,.65]){const light=detalhe(.09,.038,.38,1.95,.565,z,farol);light.rotation.z=-.12;}
+detalhe(.04,.045,1.52,-2.09,.69,0,luzFreio);
+const rodas=[];
+const tireGeo=new THREE.TorusGeometry(.275,.085,8,32);
+const rimGeo=new THREE.CylinderGeometry(.238,.238,.14,24);rimGeo.rotateX(Math.PI/2);
+for(const [x,z] of [[1.35,.94],[1.35,-.94],[-1.35,.94],[-1.35,-.94]]){
+  const wheel=new THREE.Group();wheel.position.set(x,.36,z);corpo.add(wheel);rodas.push(wheel);
+  wheel.add(new THREE.Mesh(tireGeo,borracha));
+  const disc=new THREE.Mesh(rimGeo,preto);wheel.add(disc);
+  const side=Math.sign(z);
+  for(let i=0;i<10;i++){
+    const angle=i*Math.PI/5;const spoke=new THREE.Mesh(new THREE.BoxGeometry(.026,.205,.018),metal);
+    spoke.position.set(Math.sin(angle)*.11,Math.cos(angle)*.11,side*.082);spoke.rotation.z=-angle;wheel.add(spoke);
+  }
+  const hub=new THREE.Mesh(new THREE.CylinderGeometry(.065,.065,.028,24),metal);hub.rotation.x=Math.PI/2;hub.position.z=side*.096;wheel.add(hub);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.234,.009,8,40),metal);ring.position.z=side*.08;wheel.add(ring);
+}
+// Metallic cold-gas nozzles integrated into the rear fascia.
+for(const z of [-.5,-.15,.15,.5]){const nozzle=new THREE.Mesh(new THREE.CylinderGeometry(.07,.09,.12,16),metal);nozzle.rotation.z=Math.PI/2;nozzle.position.set(-2.09,.5,z);corpo.add(nozzle);}
+// Batch fixed pieces by material; the wheels stay independent so they can rotate.
+function agruparGeometria(group){
+  const batches=new Map();
+  for(const mesh of [...group.children]){
+    if(!mesh.isMesh)continue;
+    mesh.updateMatrix();
+    const geometry=mesh.geometry.index?mesh.geometry.toNonIndexed():mesh.geometry.clone();geometry.applyMatrix4(mesh.matrix);
+    const batch=batches.get(mesh.material)||[];batch.push(geometry);batches.set(mesh.material,batch);group.remove(mesh);
+  }
+  for(const [material,geometries] of batches){
+    const merged=new THREE.BufferGeometry();
+    for(const name of ['position','normal','uv']){
+      const first=geometries[0].getAttribute(name);if(!first)continue;
+      const size=geometries.reduce((total,g)=>total+g.getAttribute(name).array.length,0);
+      const array=new Float32Array(size);let offset=0;
+      for(const geometry of geometries){const values=geometry.getAttribute(name).array;array.set(values,offset);offset+=values.length;}
+      merged.setAttribute(name,new THREE.BufferAttribute(array,first.itemSize));
+    }
+    geometries.forEach(g=>g.dispose());merged.computeBoundingSphere();
+    const mesh=new THREE.Mesh(merged,material);mesh.castShadow=material===tinta||material===vidro||material===borracha;group.add(mesh);
+  }
+}
+for(const wheel of rodas)agruparGeometria(wheel);
+agruparGeometria(corpo);
+// Jatos de gás (cones translúcidos)
+const matJato = new THREE.MeshBasicMaterial({color:couleur('exhaust'),transparent:true,opacity:.22,depthWrite:false,blending:THREE.AdditiveBlending,side:THREE.DoubleSide});
+function jato(){
+  const group=new THREE.Group();
+  for(const [radius,length,opacity] of [[.16,1.7,.16],[.065,1.05,.5]]){
+    const geometry=new THREE.ConeGeometry(radius,length,20,1,true);geometry.rotateZ(Math.PI);geometry.translate(0,-length/2,0);
+    const material=matJato.clone();material.opacity=opacity;group.add(new THREE.Mesh(geometry,material));
+  }return group;
+}
+const jTras=[], jVert=[], jLat=[];
+for(const z of [-0.5,-0.15,0.15,0.5]){ const j=jato(); j.rotation.z=-Math.PI/2; j.position.set(-2.15,0.5,z); corpo.add(j); jTras.push(j); }
+for(const [x,z] of [[1.3,0.7],[1.3,-0.7],[-1.3,0.7],[-1.3,-0.7]]){ const j=jato(); j.position.set(x,0.25,z); corpo.add(j); jVert.push(j); }
+{ const a=jato(); a.position.set(1.9,0.25,0); corpo.add(a); jLat.push(a); const b=jato(); b.position.set(-1.9,0.25,0); corpo.add(b); jLat.push(b); }
+
+function redimensionar(){ const w=container.clientWidth,h=container.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); dimGrafico(); }
+addEventListener("resize", redimensionar);
+
+const camAlvo = new THREE.Vector3();
+function atualizarVisual(dt){
+  const x = carro.posicao.x, y = carro.posicao.y;
+  carroModelo.position.set(x, y + ALT/2, 0);
+  carroModelo.rotation.z = carro.angulo;
+  for(const r of rodas) r.rotation.z -= (carro.vel.x*Math.cos(carro.angulo)+carro.vel.y*Math.sin(carro.angulo))/0.36*dt;
+  luzFreio.emissiveIntensity=comandos.freio?4:1.5;
+  // esteira: pista acompanha o carro
+  pista.position.x = grama.position.x = x;
+  tPista.offset.x = (x/24) % 1;
+  marcos.position.x = Math.floor(x/20)*20 - 100;
+  const luzX=tipoPista==='loop'?X_LOOP:x;
+  sol.position.set(luzX-30,50,30); sol.target.position.set(luzX,tipoPista==='loop'?R_LOOP:0,0);
+  // jatos
+  const fv = comandos.vert>0 && carro.gas>0 && propulsoresLigados, ft = comandos.tras>0 && carro.gas>0 && propulsoresLigados;
+  for(const j of jVert){ j.visible=fv; j.scale.y=0.6+comandos.vert*0.8+Math.random()*.2; }
+  for(const j of jTras){ j.visible=ft; j.scale.y=0.6+comandos.tras+Math.random()*.2; }
+  jLat[0].visible = comandos.lat>0 && carro.gas>0; jLat[1].visible = comandos.lat<0 && carro.gas>0;
+  // câmera segue
+  const vk = Math.min(1, carro.vel.x/80);
+  camAlvo.set(x - 7.5 - vk*4, y + 3.4, 8 + vk*3);
+  if (tipoPista === "loop") camAlvo.set(X_LOOP-7, R_LOOP*2, Math.max(R_LOOP*6,(R_LOOP*3+8)/(Math.tan(25*Math.PI/180)*camera.aspect)));
+  camera.position.lerp(camAlvo, 1 - Math.exp(-4*dt));
+  camera.lookAt(tipoPista === "loop" ? X_LOOP-7 : x+2, tipoPista === "loop" ? R_LOOP-0.5 : y+0.8, 0);
+}
+
+// ======= Gráfico v × t =======
+const gcv = $("grafico"), gctx = gcv.getContext("2d");
+const escalaGrafico=Math.min(devicePixelRatio,1.5);
+function dimGrafico(){ const r=gcv.getBoundingClientRect(); const w=Math.round(r.width*escalaGrafico),h=Math.round(r.height*escalaGrafico);if(gcv.width!==w)gcv.width=w;if(gcv.height!==h)gcv.height=h; }
+function desenharGrafico(){
+  if($("ajustes").hidden||!$("ajustes").querySelector('details').open)return;
+  const w=gcv.width,h=gcv.height,d=escalaGrafico; gctx.clearRect(0,0,w,h);
+  gctx.font=`${10*d}px JetBrains Mono`; gctx.fillStyle="#8b929c";
+  gctx.fillText("velocidade (mph) × tempo (s)", 8*d, 14*d);
+  if (historico.length<2) return;
+  const t0=historico[0][0], t1=Math.max(historico.at(-1)[0], t0+10), vmax=250;
+  gctx.strokeStyle="#2a2f37"; gctx.lineWidth=1;
+  for(const mph of [60,120,180,240]){ const yy=h-(mph/vmax)*(h-20*d)-4*d; gctx.beginPath(); gctx.moveTo(0,yy); gctx.lineTo(w,yy); gctx.stroke(); gctx.fillText(mph, w-24*d, yy-2*d); }
+  gctx.strokeStyle="#e5322d"; gctx.lineWidth=2*d; gctx.beginPath();
+  historico.forEach(([t,v],i)=>{ const xx=(t-t0)/(t1-t0)*w, yy=h-(v/vmax)*(h-20*d)-4*d; i?gctx.lineTo(xx,yy):gctx.moveTo(xx,yy); });
+  gctx.stroke();
+}
+
+// ======= HUD =======
+const fmt = n=> Math.round(n).toLocaleString("pt-BR");
+function atualizarHUD(){
+  const mph = carro.vel.x*2.23694;
+  txt("hVel", (Math.abs(mph)<0.5?0:mph).toFixed(0)+" mph");
+  if(!$("ajustes").hidden&&$("ajustes").querySelector('details').open){
+  txt("hAcc", carro.acel.toFixed(1)+" m/s²");
+  txt("hDist", fmt(carro.posicao.x)+" m");
+  txt("hVy", carro.vel.y.toFixed(2)+" m/s");
+  txt("hThr", fmt(carro.empuxo)+" N");
+  txt("hThrV", fmt(carro.empuxoV)+" N");
+  txt("hDrag", fmt(carro.arrasto)+" N");
+  txt("hFlow", carro.vazao.toFixed(1)+" kg/s");
+  txt("hVoo", carro.tempoVoo.toFixed(1)+" s");
+  txt("hAng", carro.angulo.toFixed(2)+" rad");
+  txt("hSucF", fmt(carro.succao.forca)+" N");
+  txt("hSucP", (carro.succao.pressao/1000).toFixed(1)+" kPa");
+  txt("hSucH", isFinite(carro.succao.folga) ? (carro.succao.folga*100).toFixed(0)+" cm" : "sem superfície");
+  }
+  const pesoTotal = (params.massa+carro.gas)*G;
+  txt("hSuc", succaoLigada ? (carro.succao.forca/pesoTotal).toFixed(2).replace(".",",")+"× peso" : "Desligada");
+  txt("hAlt", carro.posicao.y.toFixed(2)+" m");
+  txt("hGas", carro.gas.toFixed(1)+" kg");
+  $("gasbar").firstElementChild.style.width = (carro.gas/GAS_INICIAL*100)+"%";
+  const o = proximoObstaculo();
+  txt("hReq", o ? `${o.h.toFixed(1)} m · vy≥${Math.sqrt(2*G*o.h).toFixed(1)}` : "—");
+  txt("hVy2", carro.vel.y.toFixed(2)+" m/s");
+  const vAtual = Math.hypot(carro.vel.x, carro.vel.y);
+  txt("hLoop", succaoLigada ? "Sucção ativa · 18 m" : `${V_MIN_LOOP.toFixed(1)} m/s ${vAtual>=V_MIN_LOOP?"✓":"✗"}`);
+  const peso = (params.massa+carro.gas)*G;
+  const st = carro.gas<=0 ? "GÁS ESGOTADO" : carro.noChao ? (succaoLigada && carro.succao.eficiencia > 0.99 ? "ADERIDO" : "NO CHÃO") : (carro.empuxoV>peso ? "SUBINDO" : "NO AR");
+  txt("status", `${st} · 0–60: ${marca060? marca060.toFixed(2)+" s":"—"}`);
+  $("msgGas").hidden = !(carro.gas<=0 && !falha);
+}
+
+function mostrarFalha(o){
+  const texto = o.capotou ? "O carro bateu com o teto no chão." : `Colidiu com o obstáculo de ${o.h.toFixed(1)} m em x = ${o.x} m.`;
+  msgFalha.innerHTML = `<b>FALHA!</b><br>${texto}<br><button id="btnFalhaReset" aria-label="Reiniciar após a colisão">↺ Reiniciar</button>`;
+  msgFalha.style.display = 'block';
+  $("btnFalhaReset").onclick = reiniciar;
+}
+function proximoObstaculo(){ return obstaculosAtivos().find(o => o.x + o.w/2 > carro.posicao.x - COMPR/2); }
+// ======= Loop: teclas → física → visual → render =======
+let anterior = performance.now(), tPartida = null, hudT = 0, sombraT = 0, amostraT = 0;
+let mediaFrame=16.7, ajusteT=0, chaveSombra="";
+addEventListener('visibilitychange',()=>{anterior=performance.now();mediaFrame=16.7;ajusteT=0;});
+function loop(agora){
+  if(document.hidden){anterior=agora;requestAnimationFrame(loop);return;}
+  const intervalo=agora-anterior;
+  mediaFrame=mediaFrame*.95+Math.min(intervalo,100)*.05;ajusteT+=intervalo/1000;
+  if(ajusteT>3){
+    ajusteT=0;
+    const nova=mediaFrame>24?Math.max(.75,resolucao-.25):mediaFrame<18?Math.min(Math.min(devicePixelRatio,1.5),resolucao+.25):resolucao;
+    if(nova!==resolucao){resolucao=nova;renderer.setPixelRatio(resolucao);redimensionar();}
+  }
+  const deltaT = Math.min((agora - anterior)/1000, 0.05); anterior = agora;
+  atualizarControles();
+  // sub-passos para estabilidade
+  const n = 4;
+  if (!falha) for(let i=0;i<n;i++){ atualizarFisica(deltaT/n); const o = carro.capotou ? {capotou:true} : colisaoObstaculos(); if (o){ falha = o; mostrarFalha(o); break; } }
+  tempo += deltaT;
+  if (tPartida===null && carro.vel.x>0.3) tPartida = tempo - deltaT;
+  if (carro.vel.x < 0.1) tPartida = null;
+  if (!marca060 && tPartida!==null && carro.vel.x >= 26.82) marca060 = tempo - tPartida;
+  amostraT+=deltaT;
+  if(amostraT>=.1){amostraT=0;historico.push([tempo,carro.vel.x*2.23694]);while(historico.length&&historico[0][0]<tempo-20)historico.shift();}
+  atualizarVisual(deltaT);
+  sombraT+=deltaT;if(sombraT>=1/30){sombraT=0;const k=carro.posicao.x.toFixed(2)+","+carro.posicao.y.toFixed(2)+","+carro.angulo.toFixed(3);if(k!==chaveSombra){chaveSombra=k;renderer.shadowMap.needsUpdate=true;}}
+  renderer.render(scene, camera);
+  hudT += deltaT; if (hudT > 0.08){ hudT=0; atualizarHUD(); desenharGrafico(); }
+  requestAnimationFrame(loop);
+}
+redimensionar();
+requestAnimationFrame(t=>{ anterior=t; loop(t); container.dataset.sceneReady="1"; });
+</script>
+</body>
+</html>
